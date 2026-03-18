@@ -1,0 +1,80 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Run frontend tests
+        run: |
+          npm run test:frontend
+
+      - name: Run backend tests
+        run: |
+          npm run test:backend
+
+      - name: Build frontend
+        run: |
+          npm run build:frontend
+
+      - name: Deploy frontend
+        uses: gh-pages/deploy@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          deploy_branch: main
+          build_dir: frontend/build
+
+      - name: Deploy backend
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.BACKEND_HOST }}
+          username: ${{ secrets.BACKEND_USERNAME }}
+          key: ${{ secrets.BACKEND_SSH_KEY }}
+          source: "backend"
+          target: "/var/www/backend"
+
+      - name: Configure environment variables
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.BACKEND_HOST }}
+          username: ${{ secrets.BACKEND_USERNAME }}
+          key: ${{ secrets.BACKEND_SSH_KEY }}
+          script: |
+            echo "SUPABASE_URL=${SUPABASE_URL}" >> /var/www/backend/.env
+            echo "SUPABASE_KEY=${SUPABASE_KEY}" >> /var/www/backend/.env
+
+      - name: Restart backend service
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.BACKEND_HOST }}
+          username: ${{ secrets.BACKEND_USERNAME }}
+          key: ${{ secrets.BACKEND_SSH_KEY }}
+          script: |
+            sudo systemctl restart backend
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.BACKEND_HOST }}
+          username: ${{ secrets.BACKEND_USERNAME }}
+          key: ${{ secrets.BACKEND_SSH_KEY }}
+          script: |
+            curl -X POST \
+              http://localhost:3000/api/calculate \
+              -H 'Content-Type: application/json' \
+              -d '{"operation": "+", "num1": 2, "num2": 3}' \
+              | grep -q "result": 5
+            if [ $? -ne 0 ]; then
+              exit 1
+            fi
