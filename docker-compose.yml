@@ -1,0 +1,64 @@
+```yml
+version: '3'
+
+services:
+  frontend:
+    build: ./frontend
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    healthcheck:
+      test: ["curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # No backend service is defined for this project
+
+  # No database service is defined for this project, as per the project description
+  # However, if a PostgreSQL database were to be used, it could be defined as follows:
+  # database:
+  #   image: postgres
+  #   environment:
+  #     - POSTGRES_USER=${POSTGRES_USER}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #     - POSTGRES_DB=${POSTGRES_DB}
+  #   volumes:
+  #     - database-data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["pg_isready", "-U", "${POSTGRES_USER}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  database-data:
+```
+
+However, since this project does not have a backend or database, and uses Supabase for authentication, the `docker-compose.yml` can be simplified to:
+
+```yml
+version: '3'
+
+services:
+  frontend:
+    build: ./frontend
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    healthcheck:
+      test: ["curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+```
