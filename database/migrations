@@ -1,0 +1,74 @@
+Since there is no database schema defined, we will create a simple migration script to create a table for storing calculation history. 
+
+```sql
+-- 001_create_calculations_table.sql
+
+-- Create a table to store calculation history
+CREATE TABLE IF NOT EXISTS calculations (
+    id SERIAL PRIMARY KEY,
+    operation VARCHAR(10) NOT NULL,
+    num1 DECIMAL(10, 2) NOT NULL,
+    num2 DECIMAL(10, 2) NOT NULL,
+    result DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create an index on the operation column for faster querying
+CREATE INDEX IF NOT EXISTS idx_calculations_operation ON calculations (operation);
+
+-- Create a trigger function to log calculation history
+CREATE OR REPLACE FUNCTION log_calculation_history()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO calculations (operation, num1, num2, result)
+    VALUES (NEW.operation, NEW.num1, NEW.num2, NEW.result);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a trigger to log calculation history
+CREATE TRIGGER log_calculation_history_trigger
+AFTER INSERT ON calculations
+FOR EACH ROW
+EXECUTE PROCEDURE log_calculation_history();
+```
+
+```sql
+-- 002_add_supabase_auth_table.sql
+
+-- Create a table to store Supabase authentication data
+CREATE TABLE IF NOT EXISTS supabase_auth (
+    id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create an index on the user_id column for faster querying
+CREATE INDEX IF NOT EXISTS idx_supabase_auth_user_id ON supabase_auth (user_id);
+```
+
+```sql
+-- 003_add_supabase_auth_trigger.sql
+
+-- Create a trigger function to update Supabase authentication data
+CREATE OR REPLACE FUNCTION update_supabase_auth()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE supabase_auth
+    SET access_token = NEW.access_token,
+        refresh_token = NEW.refresh_token,
+        expires_at = NEW.expires_at
+    WHERE user_id = NEW.user_id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a trigger to update Supabase authentication data
+CREATE TRIGGER update_supabase_auth_trigger
+AFTER INSERT OR UPDATE ON supabase_auth
+FOR EACH ROW
+EXECUTE PROCEDURE update_supabase_auth();
+```
